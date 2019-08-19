@@ -5,13 +5,22 @@
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
   "scripts": {
-    "start": "ts-node ./src/index.ts"
+    "start": "ts-node ./src/index.tsx"
   },
   "dependencies": {
+    "@types/fluent-ffmpeg": "^2.1.10",
     "@types/node": "^12.7.2",
     "@types/puppeteer": "^1.19.1",
+    "@types/react": "^16.9.2",
+    "@types/react-dom": "^16.9.0",
+    "@types/rimraf": "^2.0.2",
+    "@types/styled-components": "^4.1.18",
+    "fluent-ffmpeg": "^2.1.2",
     "puppeteer": "^1.19.0",
     "react": "^16.9.0",
+    "react-dom": "^16.9.0",
+    "rimraf": "^3.0.0",
+    "styled-components": "^4.3.2",
     "timecut": "^0.1.1",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.3"
