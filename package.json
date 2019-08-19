@@ -1,0 +1,19 @@
+{
+  "name": "react-video-renderer",
+  "version": "1.0.0",
+  "repository": "https://github.com/openland/react-video-renderer.git",
+  "author": "Steve Korshakov <steve@korshakov.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "ts-node ./src/index.ts"
+  },
+  "dependencies": {
+    "@types/node": "^12.7.2",
+    "@types/puppeteer": "^1.19.1",
+    "puppeteer": "^1.19.0",
+    "react": "^16.9.0",
+    "timecut": "^0.1.1",
+    "ts-node": "^8.3.0",
+    "typescript": "^3.5.3"
+  }
+}
