@@ -10,10 +10,26 @@ const Container = styled.div({
     justifyContent: 'center'
 });
 
+const useAnimation = (time: number, start: number, end: number) => {
+    if (time < start) {
+        return 0;
+    }
+    if (end < time) {
+        return 1;
+    }
+    return (time - start) / (end - start);
+};
+
 export const Example = (props: { time: number }) => {
+    const initial = useAnimation(props.time, 1, 1.3);
     return (
         <Container>
-            <span>
+            <span
+                style={{
+                    transform: `translateY(${initial * 100}px)`,
+                    opacity: initial
+                }}
+            >
                 Example {props.time}
             </span>
         </Container>
