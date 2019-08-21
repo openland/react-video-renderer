@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { XView, XImage } from 'react-mental';
+import { useVideoTime } from './timing';
 
-const useAnimation = (time: number, start: number, end: number) => {
+const useAnimation = (start: number, end: number) => {
+    const time = useVideoTime();
     if (time < start) {
         return 0;
     }
@@ -11,8 +13,9 @@ const useAnimation = (time: number, start: number, end: number) => {
     return (time - start) / (end - start);
 };
 
-export const Example = (props: { time: number }) => {
-    const initial = useAnimation(props.time, 1, 1.3);
+export const Example = () => {
+    const time = useVideoTime();
+    const initial = useAnimation(1, 1.3);
     return (
         <XView width="100%" height="100%" justifyContent="center" alignItems="center">
             <XImage
@@ -37,12 +40,12 @@ export const Example = (props: { time: number }) => {
                 alignSelf="center"
             >
                 <span
-                    style={{
-                        // transform: `translateY(${initial * 100}px)`,
-                        opacity: initial
-                    }}
+                    // style={{
+                    //     // transform: `translateY(${initial * 100}px)`,
+                    //     // opacity: initial
+                    // }}
                 >
-                    Example {props.time}
+                    Example {initial}
                 </span>
             </XView>
         </XView>

@@ -5,16 +5,19 @@
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
   "scripts": {
-    "start": "tsc && node ./build/index.js"
+    "example": "tsc && node ./build/example-run.js"
   },
   "dependencies": {
     "@types/fluent-ffmpeg": "^2.1.10",
+    "@types/generic-pool": "^3.1.9",
     "@types/node": "^12.7.2",
     "@types/puppeteer": "^1.19.1",
     "@types/react": "^16.9.2",
     "@types/react-dom": "^16.9.0",
     "@types/rimraf": "^2.0.2",
+    "@types/tmp": "^0.1.0",
     "fluent-ffmpeg": "^2.1.2",
+    "generic-pool": "^3.7.1",
     "glamor": "^2.20.40",
     "glamorous": "^5.0.0",
     "puppeteer": "^1.19.0",
@@ -23,6 +26,8 @@
     "react-mental": "^1.4.24",
     "rimraf": "^3.0.0",
     "timecut": "^0.1.1",
+    "tmp": "^0.1.0",
+    "tslib": "^1.10.0",
     "typescript": "^3.5.3"
   }
 }
