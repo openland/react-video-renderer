@@ -28,7 +28,8 @@
         "outDir": "lib/",
         "baseUrl": ".",
         "resolveJsonModule": true,
-        "importHelpers": true
+        "importHelpers": true,
+        "declaration": true
     },
     "exclude": [
         "node_modules/**/*",
