@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "release": "rm -fr lib && tsc && yarn publish",
     "example": "tsc && node ./lib/example-run.js"
   },
   "dependencies": {
