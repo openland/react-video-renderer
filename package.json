@@ -1,6 +1,6 @@
 {
   "name": "@openland/react-video-renderer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "repository": "https://github.com/openland/react-video-renderer.git",
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
@@ -11,9 +11,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc --build",
-    "release": "rm -fr lib && tsc --build && yarn publish",
-    "example": "tsc --build && node ./lib/example-run.js"
+    "build": "tsc",
+    "release": "rm -fr lib && tsc && yarn publish",
+    "example": "tsc && node ./lib/example-run.js"
   },
   "dependencies": {
     "fluent-ffmpeg": "^2.1.2",
