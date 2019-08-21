@@ -1,34 +1,46 @@
 {
-  "name": "react-video-renderer",
+  "name": "@openland/react-video-renderer",
   "version": "1.0.0",
   "repository": "https://github.com/openland/react-video-renderer.git",
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "description": "Render your react components to a video via ffmpeg and puppeteer",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
-    "example": "tsc && node ./build/example-run.js"
+    "example": "tsc && node ./lib/example-run.js"
   },
   "dependencies": {
+    "fluent-ffmpeg": "^2.1.2",
+    "generic-pool": "^3.7.1",
+    "tmp": "^0.1.0"
+  },
+  "peerDependencies": {
+    "puppeteer": "*",
+    "react": "*",
+    "react-dom": "*"
+  },
+  "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.10",
     "@types/generic-pool": "^3.1.9",
     "@types/node": "^12.7.2",
     "@types/puppeteer": "^1.19.1",
     "@types/react": "^16.9.2",
     "@types/react-dom": "^16.9.0",
-    "@types/rimraf": "^2.0.2",
     "@types/tmp": "^0.1.0",
-    "fluent-ffmpeg": "^2.1.2",
-    "generic-pool": "^3.7.1",
+    "@types/rimraf": "^2.0.2",
     "glamor": "^2.20.40",
     "glamorous": "^5.0.0",
-    "puppeteer": "^1.19.0",
-    "react": "^16.9.0",
-    "react-dom": "^16.9.0",
     "react-mental": "^1.4.24",
     "rimraf": "^3.0.0",
-    "timecut": "^0.1.1",
-    "tmp": "^0.1.0",
+    "typescript": "^3.5.3",
     "tslib": "^1.10.0",
-    "typescript": "^3.5.3"
+    "puppeteer": "^1.19.0",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0"
   }
 }
