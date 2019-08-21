@@ -35,30 +35,28 @@ export async function renderVideo(
         create: () => P.launch(),
         destroy: (browser) => browser.close()
     }, { max: parallelizm, min: 0 });
+    try {
+        let pending: Promise<void>[] = [];
+        for (let f = 0; f < framesCount; f++) {
+            pending.push((async () => {
+                const browser = await puppeterPool.acquire();
+                try {
+                    const page = await browser.newPage();
+                    await page.setViewport({ width: opts.width, height: opts.height, deviceScaleFactor: scale });
 
-    console.log(dir);
+                    const el = (<VideoTimingContext.Provider value={f / fps}>{element}</VideoTimingContext.Provider>);
 
-    let pending: Promise<void>[] = [];
-    for (let f = 0; f < framesCount; f++) {
-        pending.push((async () => {
-            const browser = await puppeterPool.acquire();
-            try {
-                const page = await browser.newPage();
-                await page.setViewport({ width: opts.width, height: opts.height, deviceScaleFactor: scale });
+                    let html: string = '';
+                    let css: string = '';
+                    if (opts.customRenderer) {
+                        const renderResult = opts.customRenderer(el);
+                        html = renderResult.body;
+                        css = renderResult.css;
+                    } else {
+                        html = ReactDOM.renderToStaticMarkup(el);
+                    }
 
-                const el = (<VideoTimingContext.Provider value={f / fps}>{element}</VideoTimingContext.Provider>);
-
-                let html: string = '';
-                let css: string = '';
-                if (opts.customRenderer) {
-                    const renderResult = opts.customRenderer(el);
-                    html = renderResult.body;
-                    css = renderResult.css;
-                } else {
-                    html = ReactDOM.renderToStaticMarkup(el);
-                }
-
-                await page.setContent(`
+                    await page.setContent(`
                     <!DOCTYPE html>
                     <head>
                     <style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style>
@@ -69,37 +67,38 @@ export async function renderVideo(
                     </body>
                 `, { waitUntil: 'networkidle2' });
 
-                try {
-                    const result = await page.screenshot({
-                        type: 'png'
-                    });
-                    fs.writeFileSync(dir + '/image-' + String(f).padStart(5, '0') + '.png', result);
+                    try {
+                        const result = await page.screenshot({
+                            type: 'png'
+                        });
+                        fs.writeFileSync(dir + '/image-' + String(f).padStart(5, '0') + '.png', result);
+                    } finally {
+                        await page.close();
+                    }
                 } finally {
-                    await page.close();
+                    await puppeterPool.release(browser);
                 }
-            } finally {
-                await puppeterPool.release(browser);
-            }
-        })());
+            })());
+        }
+
+        await Promise.all(pending);
+
+        await new Promise((resolve, reject) => {
+            ffmpeg(dir + '/image-%05d.png')
+                .inputOption('-r ' + fps)
+                .outputOption('-pix_fmt yuv420p')
+                .outputOption('-r ' + fps)
+                .output(opts.path)
+                .withSize(`${opts.width * scale}x${opts.height * scale}`)
+                .on('end', () => {
+                    resolve();
+                })
+                .on('error', (e) => {
+                    reject(e)
+                })
+                .run();
+        });
+    } finally {
+        await puppeterPool.clear();
     }
-
-    await Promise.all(pending);
-
-    await new Promise((resolve, reject) => {
-        ffmpeg(dir + '/image-%05d.png')
-            .inputOption('-r ' + fps)
-            .outputOption('-pix_fmt yuv420p')
-            .outputOption('-r ' + fps)
-            .output(opts.path)
-            .withSize(`${opts.width * scale}x${opts.height * scale}`)
-            .on('end', () => {
-                resolve();
-            })
-            .on('error', (e) => {
-                reject(e)
-            })
-            .run();
-    });
-
-    await puppeterPool.clear();
 }
