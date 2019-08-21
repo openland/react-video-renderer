@@ -67,7 +67,7 @@ export async function renderVideo(
                     <body>
                     ${html}
                     </body>
-                `);
+                `, { waitUntil: 'networkidle2' });
 
                 try {
                     const result = await page.screenshot({

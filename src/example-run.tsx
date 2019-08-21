@@ -19,10 +19,10 @@ import { Example } from './example';
     }
     fs.mkdirSync('output');
 
-    await renderVideo(<XView width="100vh" height="100vw" backgroundColor="white" > <Example /> </XView>, {
+    await renderVideo(<XView width={375} height={375} backgroundColor="white"><Example /></XView>, {
         width: 375,
         height: 375,
-        scale: 2,
+        scale: 1,
         duration: 5,
         path: './output/video.mp4',
         customRenderer: (el) => {

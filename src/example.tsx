@@ -37,16 +37,22 @@ export const Example = () => {
             />
 
             <XView
-                alignSelf="center"
+                position="absolute"
+                justifyContent="center" 
+                alignItems="center"
+                top={0}
+                left={0}
+                right={0}
+                bottom={0}
             >
-                <span
-                    // style={{
-                    //     // transform: `translateY(${initial * 100}px)`,
-                    //     // opacity: initial
-                    // }}
+                <div
+                    style={{
+                        display: 'flex',
+                        transform: `translateY(${initial * 100}px)`,
+                    }}
                 >
                     Example {initial}
-                </span>
+                </div>
             </XView>
         </XView>
     );
