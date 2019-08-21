@@ -1,6 +1,6 @@
 {
   "name": "@openland/react-video-renderer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": "https://github.com/openland/react-video-renderer.git",
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
@@ -32,16 +32,16 @@
     "@types/puppeteer": "^1.19.1",
     "@types/react": "^16.9.2",
     "@types/react-dom": "^16.9.0",
-    "@types/tmp": "^0.1.0",
     "@types/rimraf": "^2.0.2",
+    "@types/tmp": "^0.1.0",
     "glamor": "^2.20.40",
     "glamorous": "^5.0.0",
-    "react-mental": "^1.4.24",
-    "rimraf": "^3.0.0",
-    "typescript": "^3.5.3",
-    "tslib": "^1.10.0",
     "puppeteer": "^1.19.0",
     "react": "^16.9.0",
-    "react-dom": "^16.9.0"
+    "react-dom": "^16.9.0",
+    "react-mental": "^1.4.24",
+    "rimraf": "^3.0.0",
+    "tslib": "^1.10.0",
+    "typescript": "^3.5.3"
   }
 }
