@@ -1,10 +1,17 @@
+import { XStyleFactoryRegistry, XView } from 'react-mental';
+import { css } from 'glamor';
+XStyleFactoryRegistry.registerFactory({
+    createStyle: styles => {
+        return css(styles).toString();
+    },
+});
+import { renderStaticOptimized } from 'glamor/server';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom/server';
 import * as P from 'puppeteer';
 import * as fs from 'fs';
 import * as rimraf from 'rimraf';
 import * as ffmpeg from 'fluent-ffmpeg';
-import { ServerStyleSheet } from 'styled-components';
 import { Example } from './example';
 
 (async () => {
@@ -14,25 +21,23 @@ import { Example } from './example';
     fs.mkdirSync('output');
 
     let frames: any[] = [];
-    for (let j = 0; j < 15; j++) {
+    for (let j = 0; j < 10; j++) {
         frames.push((async () => {
             let browser = await P.launch();
             let page = await browser.newPage();
-            await page.setViewport({ width: 640, height: 640, deviceScaleFactor: 2 });
+            await page.setViewport({ width: 375, height: 375, deviceScaleFactor: 1 });
 
             for (let i = 0; i < 24; i++) {
                 let time = j + i / 24.0;
-                const sheet = new ServerStyleSheet();
-                const body = ReactDOM.renderToStaticMarkup(sheet.collectStyles(<Example time={time} />));
-                const styleTags = sheet.getStyleTags();
+                const body = renderStaticOptimized(() => ReactDOM.renderToStaticMarkup(<XView width="100vh" height="100vw" backgroundColor="white"><Example time={time} /></XView>));
                 await page.setContent(`
                     <!DOCTYPE html>
                     <head>
                     <style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style>
-                    ${styleTags}
+                    <style>${body.css}</style>
                     </head>
                     <body>
-                    ${body}
+                    ${body.html}
                     </body>
                 `);
                 const result = await page.screenshot({
@@ -63,5 +68,5 @@ import { Example } from './example';
             .run();
     })
 
-    rimraf.sync('./output/image*');
+    // rimraf.sync('./output/image*');
 })();

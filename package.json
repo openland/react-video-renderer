@@ -5,7 +5,7 @@
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
   "scripts": {
-    "start": "ts-node ./src/index.tsx"
+    "start": "tsc && node ./build/index.js"
   },
   "dependencies": {
     "@types/fluent-ffmpeg": "^2.1.10",
@@ -14,15 +14,15 @@
     "@types/react": "^16.9.2",
     "@types/react-dom": "^16.9.0",
     "@types/rimraf": "^2.0.2",
-    "@types/styled-components": "^4.1.18",
     "fluent-ffmpeg": "^2.1.2",
+    "glamor": "^2.20.40",
+    "glamorous": "^5.0.0",
     "puppeteer": "^1.19.0",
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
+    "react-mental": "^1.4.24",
     "rimraf": "^3.0.0",
-    "styled-components": "^4.3.2",
     "timecut": "^0.1.1",
-    "ts-node": "^8.3.0",
     "typescript": "^3.5.3"
   }
 }
