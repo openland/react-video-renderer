@@ -17,13 +17,16 @@ export async function renderVideo(
         scale?: number,
         fps?: number,
         customRenderer?: (element: React.ReactElement) => { css: string, body: string },
-        parallelizm?: number
+        parallelizm?: number,
+        spriteRendering?: boolean,
+        tmpDir?: string
     }
 ) {
+    const spriteRendering = opts.spriteRendering !== undefined ? opts.spriteRendering : false;
     const scale = opts.scale || 1;
     const parallelizm = opts.parallelizm || 10;
     const fps = opts.fps || 24;
-    const dir = await new Promise<string>((resolve, reject) => tmp.dir((err, path) => {
+    const dir = opts.tmpDir || await new Promise<string>((resolve, reject) => tmp.dir((err, path) => {
         if (err) {
             reject(err);
         } else {
@@ -31,32 +34,38 @@ export async function renderVideo(
         }
     }));
     const framesCount = Math.ceil(opts.duration * fps);
-    const puppeterPool = pool.createPool({
-        create: () => P.launch(),
-        destroy: (browser) => browser.close()
-    }, { max: parallelizm, min: 0 });
-    try {
-        let pending: Promise<void>[] = [];
-        for (let f = 0; f < framesCount; f++) {
-            pending.push((async () => {
-                const browser = await puppeterPool.acquire();
-                try {
-                    const page = await browser.newPage();
-                    await page.setViewport({ width: opts.width, height: opts.height, deviceScaleFactor: scale });
+    if (spriteRendering) {
+        const browser = await P.launch();
+        try {
+            const page = await browser.newPage();
+            await page.setViewport({ width: opts.width * framesCount, height: opts.height, deviceScaleFactor: scale });
 
-                    const el = (<VideoTimingContext.Provider value={f / fps}>{element}</VideoTimingContext.Provider>);
+            const frames: any[] = [];
+            for (let f = 0; f < framesCount; f++) {
+                frames.push(
+                    <div
+                        key={'frame-' + f}
+                        style={{ position: 'absolute', top: 0, left: f * opts.width, height: opts.height, width: opts.width }}
+                    >
+                        <VideoTimingContext.Provider value={f / fps} key={'frame-' + f}>
+                            {element}
+                        </VideoTimingContext.Provider>
+                    </div>
+                );
+            }
+            const el = <div>{frames}</div>
 
-                    let html: string = '';
-                    let css: string = '';
-                    if (opts.customRenderer) {
-                        const renderResult = opts.customRenderer(el);
-                        html = renderResult.body;
-                        css = renderResult.css;
-                    } else {
-                        html = ReactDOM.renderToStaticMarkup(el);
-                    }
+            let html: string = '';
+            let css: string = '';
+            if (opts.customRenderer) {
+                const renderResult = opts.customRenderer(el);
+                html = renderResult.body;
+                css = renderResult.css;
+            } else {
+                html = ReactDOM.renderToStaticMarkup(el);
+            }
 
-                    await page.setContent(`
+            await page.setContent(`
                     <!DOCTYPE html>
                     <head>
                     <style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style>
@@ -67,29 +76,22 @@ export async function renderVideo(
                     </body>
                 `, { waitUntil: 'networkidle2' });
 
-                    try {
-                        const result = await page.screenshot({
-                            type: 'png'
-                        });
-                        fs.writeFileSync(dir + '/image-' + String(f).padStart(5, '0') + '.png', result);
-                    } finally {
-                        await page.close();
-                    }
-                } finally {
-                    await puppeterPool.release(browser);
-                }
-            })());
+            const result = await page.screenshot({
+                type: 'png'
+            });
+            fs.writeFileSync(dir + '/sprite.png', result);
+        } finally {
+            await browser.close();
         }
 
-        await Promise.all(pending);
-
         await new Promise((resolve, reject) => {
-            ffmpeg(dir + '/image-%05d.png')
-                .inputOption('-r ' + fps)
+            ffmpeg(dir + '/sprite.png')
+                .inputOption('-loop 1')
+                .outputOption(`-vf crop=${opts.width * scale}:${opts.height * scale}:n*${opts.width * scale}:0`)
                 .outputOption('-pix_fmt yuv420p')
                 .outputOption('-r ' + fps)
                 .output(opts.path)
-                .withSize(`${opts.width * scale}x${opts.height * scale}`)
+                .withFrames(framesCount)
                 .on('end', () => {
                     resolve();
                 })
@@ -98,7 +100,78 @@ export async function renderVideo(
                 })
                 .run();
         });
-    } finally {
-        await puppeterPool.clear();
+
+    } else {
+        const puppeterPool = pool.createPool({
+            create: () => P.launch(),
+            destroy: (browser) => browser.close()
+        }, { max: parallelizm, min: 0 });
+        try {
+
+            let pending: Promise<void>[] = [];
+            for (let f = 0; f < framesCount; f++) {
+                pending.push((async () => {
+                    const browser = await puppeterPool.acquire();
+                    try {
+                        const page = await browser.newPage();
+                        await page.setViewport({ width: opts.width, height: opts.height, deviceScaleFactor: scale });
+
+                        const el = (<VideoTimingContext.Provider value={f / fps}>{element}</VideoTimingContext.Provider>);
+
+                        let html: string = '';
+                        let css: string = '';
+                        if (opts.customRenderer) {
+                            const renderResult = opts.customRenderer(el);
+                            html = renderResult.body;
+                            css = renderResult.css;
+                        } else {
+                            html = ReactDOM.renderToStaticMarkup(el);
+                        }
+
+                        await page.setContent(`
+                    <!DOCTYPE html>
+                    <head>
+                    <style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style>
+                    <style>${css}</style>
+                    </head>
+                    <body>
+                    ${html}
+                    </body>
+                `, { waitUntil: 'networkidle2' });
+
+                        try {
+                            const result = await page.screenshot({
+                                type: 'png'
+                            });
+                            fs.writeFileSync(dir + '/image-' + String(f).padStart(5, '0') + '.png', result);
+                        } finally {
+                            await page.close();
+                        }
+                    } finally {
+                        await puppeterPool.release(browser);
+                    }
+                })());
+            }
+
+            await Promise.all(pending);
+
+            await new Promise((resolve, reject) => {
+                ffmpeg(dir + '/image-%05d.png')
+                    .inputOption('-r ' + fps)
+                    .outputOption('-pix_fmt yuv420p')
+                    .outputOption('-r ' + fps)
+                    .output(opts.path)
+                    .withSize(`${opts.width * scale}x${opts.height * scale}`)
+                    .on('end', () => {
+                        resolve();
+                    })
+                    .on('error', (e) => {
+                        reject(e)
+                    })
+                    .run();
+            });
+        } finally {
+            await puppeterPool.clear();
+        }
     }
 }

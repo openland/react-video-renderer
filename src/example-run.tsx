@@ -20,11 +20,13 @@ import { Example } from './example';
     fs.mkdirSync('output');
 
     await renderVideo(<XView width={375} height={375} backgroundColor="white"><Example /></XView>, {
-        width: 375,
-        height: 375,
+        width: 376,
+        height: 376,
         scale: 1,
         duration: 5,
+        tmpDir: 'output',
         path: './output/video.mp4',
+        spriteRendering: true,
         customRenderer: (el) => {
             let res = renderStaticOptimized(() => ReactDOM.renderToStaticMarkup(el));
             return { body: res.html, css: res.css };

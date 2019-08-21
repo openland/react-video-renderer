@@ -5,6 +5,7 @@
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
   "scripts": {
+    "build": "tsc",
     "example": "tsc && node ./build/example-run.js"
   },
   "dependencies": {
