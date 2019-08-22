@@ -4,8 +4,9 @@ import * as P from 'puppeteer';
 import * as fs from 'fs';
 import * as ffmpeg from 'fluent-ffmpeg';
 import * as tmp from 'tmp';
-import * as pool from 'generic-pool';
 import { VideoTimingContext } from './timing';
+import { resolve } from 'path';
+import sharp = require('sharp');
 
 export async function renderVideo(
     element: React.ReactElement,
@@ -18,15 +19,19 @@ export async function renderVideo(
         fps?: number,
         customRenderer?: (element: React.ReactElement) => { css: string, body: string },
         parallelizm?: number,
-        spriteRendering?: boolean,
-        tmpDir?: string
+        tmpDir?: string,
+        batchSize?: number
     }
 ) {
-    const spriteRendering = opts.spriteRendering !== undefined ? opts.spriteRendering : false;
+
+    //
+    // Resolve parameters
+    //
+
     const scale = opts.scale || 1;
     const parallelizm = opts.parallelizm || 10;
     const fps = opts.fps || 24;
-    const dir = opts.tmpDir || await new Promise<string>((resolve, reject) => tmp.dir((err, path) => {
+    const dir = opts.tmpDir ? resolve(opts.tmpDir) : await new Promise<string>((resolve, reject) => tmp.dir((err, path) => {
         if (err) {
             reject(err);
         } else {
@@ -34,144 +39,139 @@ export async function renderVideo(
         }
     }));
     const framesCount = Math.ceil(opts.duration * fps);
-    if (spriteRendering) {
-        const browser = await P.launch();
-        try {
-            const page = await browser.newPage();
-            await page.setViewport({ width: opts.width * framesCount, height: opts.height, deviceScaleFactor: scale });
+    const batchSize = opts.batchSize || 80;
 
-            const frames: any[] = [];
-            for (let f = 0; f < framesCount; f++) {
-                frames.push(
-                    <div
-                        key={'frame-' + f}
-                        style={{ position: 'absolute', top: 0, left: f * opts.width, height: opts.height, width: opts.width }}
-                    >
-                        <VideoTimingContext.Provider value={f / fps} key={'frame-' + f}>
-                            {element}
-                        </VideoTimingContext.Provider>
-                    </div>
-                );
-            }
-            const el = <div>{frames}</div>
+    //
+    // Render batches
+    //
 
-            let html: string = '';
-            let css: string = '';
-            if (opts.customRenderer) {
-                const renderResult = opts.customRenderer(el);
-                html = renderResult.body;
-                css = renderResult.css;
+    let batchIndex = 0;
+    let start = Date.now();
+    for (let s = 0; s < framesCount; s += batchSize) {
+        const count = Math.min(batchSize, framesCount - s);
+
+        // Render Frames
+        const frames: any[] = [];
+        for (let f = s; f < s + count; f++) {
+            frames.push(
+                <div
+                    key={'frame-' + f}
+                    style={{ position: 'absolute', top: 0, left: (f - s) * opts.width, height: opts.height, width: opts.width, overflow: 'hidden' }}
+                >
+                    <VideoTimingContext.Provider value={f / fps} key={'frame-' + f}>
+                        {element}
+                    </VideoTimingContext.Provider>
+                </div>
+            );
+        }
+        const el = <div>{frames}</div>
+
+        let html: string = '';
+        let css: string = '';
+        if (opts.customRenderer) {
+            const renderResult = opts.customRenderer(el);
+            html = renderResult.body;
+            css = renderResult.css;
+        } else {
+            html = ReactDOM.renderToStaticMarkup(el);
+        }
+
+        const content = `<!DOCTYPE html>
+<head>
+<style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style>
+<style>
+${css}
+</style>
+</head>
+<body>
+${html}
+</body>
+        `;
+
+        await new Promise<void>((resolve, reject) => fs.writeFile(dir + `/batch-${batchIndex}.html`, content, (err) => {
+            if (err) {
+                reject(err);
             } else {
-                html = ReactDOM.renderToStaticMarkup(el);
+                resolve();
             }
-
-            await page.setContent(`
-                    <!DOCTYPE html>
-                    <head>
-                    <style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style>
-                    <style>${css}</style>
-                    </head>
-                    <body>
-                    ${html}
-                    </body>
-                `, { waitUntil: 'networkidle2' });
-
-            const result = await page.screenshot({
-                type: 'png'
-            });
-            fs.writeFileSync(dir + '/sprite.png', result);
-        } finally {
-            await browser.close();
-        }
-
-        await new Promise((resolve, reject) => {
-            ffmpeg(dir + '/sprite.png')
-                .inputOption('-loop 1')
-                .outputOption(`-vf crop=${opts.width * scale}:${opts.height * scale}:n*${opts.width * scale}:0`)
-                .outputOption('-pix_fmt yuv420p')
-                .outputOption('-r ' + fps)
-                .output(opts.path)
-                .withFrames(framesCount)
-                .on('end', () => {
-                    resolve();
-                })
-                .on('error', (e) => {
-                    reject(e)
-                })
-                .run();
-        });
-
-    } else {
-        const puppeterPool = pool.createPool({
-            create: () => P.launch(),
-            destroy: (browser) => browser.close()
-        }, { max: parallelizm, min: 0 });
-        try {
-
-            let pending: Promise<void>[] = [];
-            for (let f = 0; f < framesCount; f++) {
-                pending.push((async () => {
-                    const browser = await puppeterPool.acquire();
-                    try {
-                        const page = await browser.newPage();
-                        await page.setViewport({ width: opts.width, height: opts.height, deviceScaleFactor: scale });
-
-                        const el = (<VideoTimingContext.Provider value={f / fps}>{element}</VideoTimingContext.Provider>);
-
-                        let html: string = '';
-                        let css: string = '';
-                        if (opts.customRenderer) {
-                            const renderResult = opts.customRenderer(el);
-                            html = renderResult.body;
-                            css = renderResult.css;
-                        } else {
-                            html = ReactDOM.renderToStaticMarkup(el);
-                        }
-
-                        await page.setContent(`
-                    <!DOCTYPE html>
-                    <head>
-                    <style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style>
-                    <style>${css}</style>
-                    </head>
-                    <body>
-                    ${html}
-                    </body>
-                `, { waitUntil: 'networkidle2' });
-
-                        try {
-                            const result = await page.screenshot({
-                                type: 'png'
-                            });
-                            fs.writeFileSync(dir + '/image-' + String(f).padStart(5, '0') + '.png', result);
-                        } finally {
-                            await page.close();
-                        }
-                    } finally {
-                        await puppeterPool.release(browser);
-                    }
-                })());
-            }
-
-            await Promise.all(pending);
-
-            await new Promise((resolve, reject) => {
-                ffmpeg(dir + '/image-%05d.png')
-                    .inputOption('-r ' + fps)
-                    .outputOption('-pix_fmt yuv420p')
-                    .outputOption('-r ' + fps)
-                    .output(opts.path)
-                    .withSize(`${opts.width * scale}x${opts.height * scale}`)
-                    .on('end', () => {
-                        resolve();
-                    })
-                    .on('error', (e) => {
-                        reject(e)
-                    })
-                    .run();
-            });
-        } finally {
-            await puppeterPool.clear();
-        }
+        }));
+        batchIndex++;
     }
+    console.log('Batches rendered in ' + (Date.now() - start) + ' ms');
+
+    //
+    // Render Sprites
+    //
+
+    batchIndex = 0;
+    start = Date.now();
+    let pending: Promise<void>[] = [];
+    for (let s = 0; s < framesCount; s += batchSize) {
+        const count = Math.min(batchSize, framesCount - s);
+        const currentBatchIndex = batchIndex;
+        batchIndex++;
+
+        pending.push((async () => {
+            const browser = await P.launch();
+            try {
+                const page = await browser.newPage();
+                await page.setViewport({ width: opts.width * count, height: opts.height, deviceScaleFactor: scale });
+                await page.goto('file://' + dir + `/batch-${currentBatchIndex}.html`, { waitUntil: 'networkidle2' });
+                await page.screenshot({
+                    type: 'png',
+                    path: dir + `/batch-${currentBatchIndex}.png`
+                });
+            } finally {
+                await browser.close();
+            }
+
+        })())
+    }
+    await Promise.all(pending);
+    console.log('Batches exported in ' + (Date.now() - start) + ' ms');
+
+    batchIndex = 0;
+    start = Date.now();
+    pending = [];
+    for (let s = 0; s < framesCount; s += batchSize) {
+        const count = Math.min(batchSize, framesCount - s);
+        const currentBatchIndex = batchIndex;
+        const source = sharp(dir + `/batch-${currentBatchIndex}.png`);
+        for (let f = s; f < s + count; f++) {
+            let paddedId = `${f}`;
+            while (paddedId.length < 5) {
+                paddedId = '0' + paddedId;
+            }
+            pending.push((async () => {
+                await source.clone().extract({
+                    left: (f - s) * opts.width, top: 0,
+                    width: opts.width * scale,
+                    height: opts.height * scale
+                }).toFile(dir + `/frame-${paddedId}.png`);
+            })());
+        }
+
+        batchIndex++;
+    }
+    await Promise.all(pending);
+    console.log('Batches split in ' + (Date.now() - start) + ' ms');
+
+    start = Date.now();
+    await new Promise((resolve, reject) => {
+        ffmpeg(dir + '/frame-%05d.png')
+            .inputOption('-r ' + fps)
+            .outputOption('-pix_fmt yuv420p')
+            .outputOption('-r ' + fps)
+            .output(opts.path)
+            .withSize(`${opts.width * scale}x${opts.height * scale}`)
+            .on('end', () => {
+                resolve();
+            })
+            .on('error', (e) => {
+                reject(e)
+            })
+            .run();
+    });
+    let end = Date.now()
+    console.log('Video encoded in ' + (end - start) + ' ms');
 }
