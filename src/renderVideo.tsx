@@ -118,8 +118,9 @@ ${html}
                 await page.setViewport({ width: opts.width * count, height: opts.height, deviceScaleFactor: scale });
                 await page.goto('file://' + dir + `/batch-${currentBatchIndex}.html`, { waitUntil: 'networkidle2' });
                 await page.screenshot({
-                    type: 'png',
-                    path: dir + `/batch-${currentBatchIndex}.png`
+                    type: 'jpeg',
+                    quality: 90,
+                    path: dir + `/batch-${currentBatchIndex}.jpg`
                 });
             } finally {
                 await browser.close();
@@ -136,7 +137,7 @@ ${html}
     for (let s = 0; s < framesCount; s += batchSize) {
         const count = Math.min(batchSize, framesCount - s);
         const currentBatchIndex = batchIndex;
-        const source = sharp(dir + `/batch-${currentBatchIndex}.png`);
+        const source = sharp(dir + `/batch-${currentBatchIndex}.jpg`);
         for (let f = s; f < s + count; f++) {
             let paddedId = `${f}`;
             while (paddedId.length < 5) {
@@ -144,10 +145,10 @@ ${html}
             }
             pending.push((async () => {
                 await source.clone().extract({
-                    left: (f - s) * opts.width, top: 0,
+                    left: (f - s) * opts.width * scale, top: 0,
                     width: opts.width * scale,
                     height: opts.height * scale
-                }).toFile(dir + `/frame-${paddedId}.png`);
+                }).toFile(dir + `/frame-${paddedId}.jpg`);
             })());
         }
 
@@ -158,7 +159,7 @@ ${html}
 
     start = Date.now();
     await new Promise((resolve, reject) => {
-        ffmpeg(dir + '/frame-%05d.png')
+        ffmpeg(dir + '/frame-%05d.jpg')
             .inputOption('-r ' + fps)
             .outputOption('-pix_fmt yuv420p')
             .outputOption('-r ' + fps)
