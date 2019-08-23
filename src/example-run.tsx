@@ -12,6 +12,9 @@ import { renderVideo } from './index';
 import { renderStaticOptimized } from 'glamor/server';
 import * as ReactDOM from 'react-dom/server';
 import { Example } from './example';
+import * as util from 'util';
+import { exec as execRaw } from 'child_process';
+const exec = util.promisify(execRaw);
 
 (async () => {
     if (fs.existsSync('output')) {
@@ -29,6 +32,16 @@ import { Example } from './example';
         customRenderer: (el) => {
             let res = renderStaticOptimized(() => ReactDOM.renderToStaticMarkup(el));
             return { body: res.html, css: res.css };
-        }
+        },
+        // customScreenshoter: async (src, dst, width, height, scale) => {
+        //     // Firefox way
+        //     // await exec(`/Applications/Firefox.app/Contents/MacOS/firefox --headless --screenshot ${dst} file://${src}`)
+            
+        //     // Chrome without puppeteer
+        //     await exec(`/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --disable-gpu --headless --screenshot=${dst} --window-size=${width}x${height} file://${src}`)
+        // },
+        // customEncoder: async (count, width, height, dir, to) => {
+        //     await exec(`/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --disable-gpu --headless --screenshot=${dst} --window-size=${width}x${height} file://${src}`)
+        // }
     });
 })();

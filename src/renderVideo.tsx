@@ -18,6 +18,8 @@ export async function renderVideo(
         scale?: number,
         fps?: number,
         customRenderer?: (element: React.ReactElement) => { css: string, body: string },
+        customScreenshoter?: (src: string, dst: string, width: number, height: number, scale: number) => Promise<void>,
+        customEncoder?: (count: number, width: number, height: number, dir: string, to: string) => Promise<void>
         parallelizm?: number,
         tmpDir?: string,
         batchSize?: number
@@ -39,7 +41,7 @@ export async function renderVideo(
         }
     }));
     const framesCount = Math.ceil(opts.duration * fps);
-    const batchSize = opts.batchSize || 80;
+    const batchSize = opts.batchSize || 120;
 
     //
     // Render batches
@@ -84,7 +86,9 @@ ${css}
 </style>
 </head>
 <body>
+<div style="background-color:white;">
 ${html}
+</div>
 </body>
         `;
 
@@ -112,67 +116,80 @@ ${html}
         batchIndex++;
 
         pending.push((async () => {
-            const browser = await P.launch();
-            try {
-                const page = await browser.newPage();
-                await page.setViewport({ width: opts.width * count, height: opts.height, deviceScaleFactor: scale });
-                await page.goto('file://' + dir + `/batch-${currentBatchIndex}.html`, { waitUntil: 'networkidle2' });
-                await page.screenshot({
-                    type: 'jpeg',
-                    quality: 90,
-                    path: dir + `/batch-${currentBatchIndex}.jpg`
-                });
-            } finally {
-                await browser.close();
+            if (opts.customScreenshoter) {
+                await opts.customScreenshoter(
+                    dir + `/batch-${currentBatchIndex}.html`,
+                    dir + `/batch-${currentBatchIndex}.png`,
+                    opts.width * count,
+                    opts.height,
+                    scale
+                );
+            } else {
+                const browser = await P.launch();
+                try {
+                    const page = await browser.newPage();
+                    await page.setViewport({ width: opts.width * count, height: opts.height, deviceScaleFactor: scale });
+                    await page.goto('file://' + dir + `/batch-${currentBatchIndex}.html`, { waitUntil: 'networkidle2' });
+                    await page.screenshot({
+                        type: 'png',
+                        omitBackground: false,
+                        path: dir + `/batch-${currentBatchIndex}.png`
+                    });
+                } finally {
+                    await browser.close();
+                }
             }
-
         })())
     }
     await Promise.all(pending);
     console.log('Batches exported in ' + (Date.now() - start) + ' ms');
 
-    batchIndex = 0;
-    start = Date.now();
-    pending = [];
-    for (let s = 0; s < framesCount; s += batchSize) {
-        const count = Math.min(batchSize, framesCount - s);
-        const currentBatchIndex = batchIndex;
-        const source = sharp(dir + `/batch-${currentBatchIndex}.jpg`);
-        for (let f = s; f < s + count; f++) {
-            let paddedId = `${f}`;
-            while (paddedId.length < 5) {
-                paddedId = '0' + paddedId;
+    if (opts.customEncoder) {
+        await opts.customEncoder(batchIndex, opts.width * scale, opts.height * scale, dir, opts.path)
+    } else {
+        batchIndex = 0;
+        start = Date.now();
+        pending = [];
+        for (let s = 0; s < framesCount; s += batchSize) {
+            const count = Math.min(batchSize, framesCount - s);
+            const currentBatchIndex = batchIndex;
+            const source = sharp(dir + `/batch-${currentBatchIndex}.png`);
+            for (let f = s; f < s + count; f++) {
+                let paddedId = `${f}`;
+                while (paddedId.length < 5) {
+                    paddedId = '0' + paddedId;
+                }
+                pending.push((async () => {
+                    await source.clone().extract({
+                        left: (f - s) * opts.width * scale, top: 0,
+                        width: opts.width * scale,
+                        height: opts.height * scale
+                    }).toFile(dir + `/frame-${paddedId}.png`);
+                })());
             }
-            pending.push((async () => {
-                await source.clone().extract({
-                    left: (f - s) * opts.width * scale, top: 0,
-                    width: opts.width * scale,
-                    height: opts.height * scale
-                }).toFile(dir + `/frame-${paddedId}.jpg`);
-            })());
+
+            batchIndex++;
         }
+        await Promise.all(pending);
+        console.log('Batches split in ' + (Date.now() - start) + ' ms');
 
-        batchIndex++;
+        start = Date.now();
+        await new Promise((resolve, reject) => {
+            ffmpeg(dir + '/frame-%05d.png')
+                .inputOption('-r ' + fps)
+                .outputOption('-pix_fmt yuv420p')
+                .outputOption('-r ' + fps)
+                .output(opts.path)
+                .withSize(`${opts.width * scale}x${opts.height * scale}`)
+                .on('end', () => {
+                    resolve();
+                })
+                .on('error', (e) => {
+                    reject(e)
+                })
+                .run();
+        });
+        let end = Date.now()
+        console.log('Video encoded in ' + (end - start) + ' ms');
     }
-    await Promise.all(pending);
-    console.log('Batches split in ' + (Date.now() - start) + ' ms');
-
-    start = Date.now();
-    await new Promise((resolve, reject) => {
-        ffmpeg(dir + '/frame-%05d.jpg')
-            .inputOption('-r ' + fps)
-            .outputOption('-pix_fmt yuv420p')
-            .outputOption('-r ' + fps)
-            .output(opts.path)
-            .withSize(`${opts.width * scale}x${opts.height * scale}`)
-            .on('end', () => {
-                resolve();
-            })
-            .on('error', (e) => {
-                reject(e)
-            })
-            .run();
-    });
-    let end = Date.now()
-    console.log('Video encoded in ' + (end - start) + ' ms');
 }
