@@ -17,6 +17,7 @@ export async function renderVideo(
         duration: number,
         scale?: number,
         fps?: number,
+        chromiumPath?: string,
         customRenderer?: (element: React.ReactElement) => { css: string, body: string },
         customScreenshoter?: (src: string, dst: string, width: number, height: number, scale: number) => Promise<void>,
         customEncoder?: (count: number, width: number, height: number, dir: string, to: string) => Promise<void>
@@ -125,7 +126,10 @@ ${html}
                     scale
                 );
             } else {
-                const browser = await P.launch();
+                const browser = await P.launch({
+                    executablePath: opts.chromiumPath,
+                    args: ['--disable-dev-shm-usage', '--no-sandbox']
+                });
                 try {
                     const page = await browser.newPage();
                     await page.setViewport({ width: opts.width * count, height: opts.height, deviceScaleFactor: scale });
