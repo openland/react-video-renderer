@@ -1,6 +1,6 @@
 {
   "name": "@openland/react-video-renderer",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "repository": "https://github.com/openland/react-video-renderer.git",
   "author": "Steve Korshakov <steve@korshakov.com>",
   "license": "MIT",
