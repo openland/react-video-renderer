@@ -1,6 +1,5 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom/server';
-import * as P from 'puppeteer';
 import * as fs from 'fs';
 import * as ffmpeg from 'fluent-ffmpeg';
 import * as tmp from 'tmp';
@@ -126,6 +125,7 @@ ${html}
                     scale
                 );
             } else {
+                const P = require('puppeteer');
                 const browser = await P.launch({
                     executablePath: opts.chromiumPath,
                     args: ['--disable-dev-shm-usage', '--no-sandbox']
